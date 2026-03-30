@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Swapping App</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+
+  <!-- ─── Header ─────────────────────────────────────────────── -->
+  <header class="site-header">
+    <h1>Face Swapping App</h1>
+  </header>
+
+  <!-- ─── Main card ───────────────────────────────────────────── -->
+  <main class="container">
+    <form id="swapForm" enctype="multipart/form-data">
+
+      <div class="panels">
+
+        <!-- Source -->
+        <div class="panel">
+          <h2 class="panel-title">Source Image</h2>
+          <div class="preview-box" id="srcPreviewBox">
+            <img id="srcPreview" class="preview-img hidden" alt="Source preview" />
+            <span class="placeholder-text" id="srcPlaceholder">No image selected</span>
+          </div>
+          <label class="browse-btn" for="sourceInput">Browse</label>
+          <input type="file" id="sourceInput" name="source"
+                 accept=".png,.jpg,.jpeg,.webp" class="file-input" />
+        </div>
+
+        <!-- Target -->
+        <div class="panel">
+          <h2 class="panel-title">Target Image</h2>
+          <div class="preview-box" id="tgtPreviewBox">
+            <img id="tgtPreview" class="preview-img hidden" alt="Target preview" />
+            <span class="placeholder-text" id="tgtPlaceholder">No image selected</span>
+          </div>
+          <label class="browse-btn" for="targetInput">Browse</label>
+          <input type="file" id="targetInput" name="target"
+                 accept=".png,.jpg,.jpeg,.webp" class="file-input" />
+        </div>
+
+        <!-- Output -->
+        <div class="panel">
+          <h2 class="panel-title">Output</h2>
+          <div class="preview-box" id="outPreviewBox">
+            <img id="outPreview" class="preview-img hidden" alt="Output preview" />
+            <span class="placeholder-text" id="outPlaceholder">Result will appear here</span>
+          </div>
+          <a id="downloadLink" class="browse-btn hidden" download="swapped_face.jpg">
+            Download
+          </a>
+        </div>
+
+      </div><!-- /.panels -->
+
+      <!-- Error banner -->
+      <div id="errorBanner" class="error-banner hidden"></div>
+
+      <!-- Swap button -->
+      <div class="swap-row">
+        <button type="submit" class="swap-btn" id="swapBtn">Swap</button>
+      </div>
+
+    </form>
+  </main>
+
+  <!-- ─── Footer ─────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    <p>&copy; 2024 Face Swapping App</p>
+  </footer>
+
+  <!-- ─── Script ─────────────────────────────────────────────── -->
+  <script>
+    // Live preview helpers
+    function wirePreview(inputId, imgId, placeholderId) {
+      const input = document.getElementById(inputId);
+      const img   = document.getElementById(imgId);
+      const ph    = document.getElementById(placeholderId);
+      input.addEventListener('change', function () {
+        const file = this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          img.src = e.target.result;
+          img.classList.remove('hidden');
+          ph.classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    wirePreview('sourceInput', 'srcPreview', 'srcPlaceholder');
+    wirePreview('targetInput', 'tgtPreview', 'tgtPlaceholder');
+
+    // Form submission
+    const form      = document.getElementById('swapForm');
+    const swapBtn   = document.getElementById('swapBtn');
+    const errBanner = document.getElementById('errorBanner');
+    const outImg    = document.getElementById('outPreview');
+    const outPh     = document.getElementById('outPlaceholder');
+    const dlLink    = document.getElementById('downloadLink');
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      errBanner.classList.add('hidden');
+      errBanner.textContent = '';
+      swapBtn.disabled = true;
+      swapBtn.textContent = 'Processing…';
+
+      const data = new FormData(form);
+      try {
+        const res  = await fetch('/swap', { method: 'POST', body: data });
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.error || 'Unknown error');
+        }
+
+        outImg.src = json.output_url + '?t=' + Date.now();
+        outImg.classList.remove('hidden');
+        outPh.classList.add('hidden');
+
+        dlLink.href = json.output_url;
+        dlLink.classList.remove('hidden');
+
+      } catch (err) {
+        errBanner.textContent = 'Error: ' + err.message;
+        errBanner.classList.remove('hidden');
+      } finally {
+        swapBtn.disabled = false;
+        swapBtn.textContent = 'Swap';
+      }
+    });
+  </script>
+
+</body>
+</html>

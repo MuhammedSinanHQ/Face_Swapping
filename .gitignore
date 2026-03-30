@@ -1,0 +1,9 @@
+static/uploads/*.jpg
+static/uploads/*.jpeg
+static/uploads/*.png
+static/uploads/*.webp
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
