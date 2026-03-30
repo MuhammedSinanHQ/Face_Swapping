@@ -76,28 +76,31 @@ def swap_faces(src_path: str, tgt_path: str) -> np.ndarray:
         raise ValueError("No face detected in the target image.")
 
     # Pick the largest face in each image
-    sx, sy, sw, sh = max(src_faces, key=lambda f: f[2] * f[3])
-    tx, ty, tw, th = max(tgt_faces, key=lambda f: f[2] * f[3])
+    src_x, src_y, src_w, src_h = max(src_faces, key=lambda f: f[2] * f[3])
+    tgt_x, tgt_y, tgt_w, tgt_h = max(tgt_faces, key=lambda f: f[2] * f[3])
 
     # Crop source face region
-    src_face = src_img[sy : sy + sh, sx : sx + sw]
+    src_face = src_img[src_y : src_y + src_h, src_x : src_x + src_w]
 
-    # Resize source face to target face dimensions
-    src_face_resized = cv2.resize(src_face, (tw, th))
+    # Resize source face to target face dimensions; choose interpolation by scale
+    if src_w * src_h >= tgt_w * tgt_h:
+        interp = cv2.INTER_AREA
+    else:
+        interp = cv2.INTER_CUBIC
+    src_face_resized = cv2.resize(src_face, (tgt_w, tgt_h), interpolation=interp)
 
     # Place resized source face on a copy of the target image
     output = tgt_img.copy()
-    output[ty : ty + th, tx : tx + tw] = src_face_resized
+    output[tgt_y : tgt_y + tgt_h, tgt_x : tgt_x + tgt_w] = src_face_resized
 
-    # Build elliptical mask centred on target face region
+    # Build elliptical mask (single-channel) centered on the target face region
     mask = np.zeros(tgt_img.shape[:2], dtype=np.uint8)
-    center = (tx + tw // 2, ty + th // 2)
-    axes = (tw // 2, th // 2)
+    center = (tgt_x + tgt_w // 2, tgt_y + tgt_h // 2)
+    axes = (tgt_w // 2, tgt_h // 2)
     cv2.ellipse(mask, center, axes, 0, 0, 360, 255, -1)
-    mask_3ch = cv2.merge([mask, mask, mask])
 
-    # Seamless clone for natural blending
-    result = cv2.seamlessClone(output, tgt_img, mask_3ch, center, cv2.NORMAL_CLONE)
+    # Seamless clone for natural blending (seamlessClone expects a single-channel mask)
+    result = cv2.seamlessClone(output, tgt_img, mask, center, cv2.NORMAL_CLONE)
 
     return result
 
@@ -155,4 +158,5 @@ def swap():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=5000, debug=debug)
